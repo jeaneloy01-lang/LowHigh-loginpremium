@@ -257,7 +257,7 @@ Header.Size = UDim2.new(1, -70, 0, 60); Header.Position = UDim2.new(0, 70, 0, 0)
 
 local Title = Instance.new("TextLabel", Header)
 Title.Position = UDim2.new(0, 10, 0, 12); Title.Size = UDim2.new(0, 200, 0, 20)
-Title.Text = "Low High Admin"; Title.TextColor3 = Theme.Accent
+Title.Text = "Low High Premium"; Title.TextColor3 = Theme.Accent
 Title.Font = Enum.Font.GothamBold; Title.TextSize = 16; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.BackgroundTransparency = 1
 
 local SubTitle = Instance.new("TextLabel", Header)
