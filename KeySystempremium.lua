@@ -810,6 +810,6 @@ OldIndex = hookmetamethod(game, "__index", function(self, Index)
     end
     return OldIndex(self, Index)
 end)
- ]
+ 
 
 end
