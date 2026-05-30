@@ -1,5 +1,5 @@
 -- ==============================================================================
---         SISTEMA DE PROTEÇÃO EMBUTIDO LOWHIGH STORE - PREMIUM (LEVEL 3)
+--         SISTEMA DE PROTEÇÃO EMBUTIDO LOWHIGH STORE - BASE KEYAUTH
 -- ==============================================================================
 
 local HttpService = game:GetService("HttpService")
@@ -10,7 +10,7 @@ function KeyAuthClass.new(name, ownerid, secret, version)
     local self = setmetatable({}, KeyAuthClass)
     self.name = name; self.ownerid = ownerid; self.secret = secret; self.version = version
     self.sessionid = nil; self.initialized = false
-    self.user_data = { subscriptions = { { level = "0" } } }
+    self.user_data = { subscriptions = { { level = "0", expiry = "0" } } }
     return self
 end
 
@@ -42,6 +42,31 @@ function KeyAuthClass:key(key)
 end
 
 -- =============================================
+--  SISTEMA PARA DETECTAR O TEMPO DA KEY
+-- =============================================
+local function CalcularTempoRestante(expiryTimestamp)
+    if not expiryTimestamp then return "Vitalício" end
+    local expiry = tonumber(expiryTimestamp)
+    if not expiry then return "Vitalício" end
+    
+    local diff = expiry - os.time()
+    
+    if diff > 157680000 then -- Maior que 5 anos
+        return "Vitalício"
+    elseif diff > 25920000 then -- Maior que ~300 dias
+        return "1 Year"
+    elseif diff > 2160000 then -- Maior que ~25 dias
+        return "1 Month"
+    elseif diff > 432000 then -- Maior que ~5 dias
+        return "1 Week"
+    elseif diff > 0 then
+        return "1 Day"
+    else
+        return "Expirado"
+    end
+end
+
+-- =============================================
 --                 INICIALIZAÇÃO DO BANCO
 -- =============================================
 local KeyAuthApp = KeyAuthClass.new(
@@ -66,12 +91,20 @@ Btn.MouseButton1Click:Connect(function()
     Btn.Text = "Verificando..."
     local status, msg = KeyAuthApp:key(TextBox.Text)
     if status then
+        -- =========================================================================
+        -- ATENÇÃO AQUI: MUDE O "3" PARA O LEVEL DA KEY QUE ESTE SCRIPT EXIGE!
+        -- Ex: Premium = "3", Médio = "2", Simples = "1"
+        -- =========================================================================
         if KeyAuthApp.user_data.subscriptions[1].level == "3" then
             LoginGui:Destroy()
-            print("Acesso TOTAL Liberado! Carregando GUI Nativa do LowHigh PREMIUM...")
-            carregarScriptPremium() -- Aciona a função abaixo
+            
+            -- Detecta a duração e envia pro script
+            local expiryStr = CalcularTempoRestante(KeyAuthApp.user_data.subscriptions[1].expiry)
+            print("Acesso Liberado! Duração: " .. expiryStr)
+            
+            carregarScriptPrincipal(expiryStr) -- Aciona a função abaixo
         else
-            game.Players.LocalPlayer:Kick("❌ LowHigh Store: Acesso NEGADO. Esta key não é do nível PREMIUM!")
+            game.Players.LocalPlayer:Kick("❌ LowHigh Store: Acesso NEGADO. Esta key não tem o nível correto!")
         end
     else
         Btn.Text = "Key Inválida!"; wait(1.5); Btn.Text = "Verificar"
@@ -81,8 +114,8 @@ end)
 -- ==============================================================================
 --         COLE O SEU SCRIPT INTEIRO DENTRO DESTA FUNÇÃO ABAIXO
 -- ==============================================================================
-function carregarScriptPremium()
-      
+function carregarScriptPrincipal(duracaoDaKey)
+    
 -- ==============================================================================
 --         LOW HIGH ADMIN - VITALÍCIO (ÍCONES MINI + HITBOX MAX + PRELOAD)
 -- ==============================================================================
@@ -92,7 +125,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Stats = game:GetService("Stats")
-local ContentProvider = game:GetService("ContentProvider") -- Sistema de carregar sem delay
+local ContentProvider = game:GetService("ContentProvider") 
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
@@ -109,7 +142,6 @@ local ImageURIs = {
     "rbxthumb://type=Asset&id=90674527474660&w=150&h=150",  -- Olho
     "rbxthumb://type=Asset&id=70777727722441&w=150&h=150"   -- Engrenagem
 }
--- Baixa as imagens na memória para aparecerem na hora
 pcall(function() ContentProvider:PreloadAsync(ImageURIs) end)
 
 -- =============================================
@@ -272,7 +304,8 @@ UserLabel.Font = Enum.Font.GothamBold; UserLabel.TextSize = 14; UserLabel.TextXA
 
 local StatusLabel = Instance.new("TextLabel", Header)
 StatusLabel.Position = UDim2.new(1, -165, 0, 32); StatusLabel.Size = UDim2.new(0, 150, 0, 15)
-StatusLabel.Text = "Vitalício"; StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+-- Variável global injetada caso o script principal não envie
+StatusLabel.Text = _G.DuracaoDaKey or "Vitalício"; StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 StatusLabel.Font = Enum.Font.Gotham; StatusLabel.TextSize = 11; StatusLabel.TextXAlignment = Enum.TextXAlignment.Right; StatusLabel.BackgroundTransparency = 1
 
 -- Page Container
@@ -282,10 +315,9 @@ PageContainer.Size = UDim2.new(1, -80, 1, -70); PageContainer.Position = UDim2.n
 local Pages = {}
 local TabData = {} 
 
--- ESTRUTURA: HITBOX CONTINUA GIGANTE, MAS A IMAGEM AGORA É MENOR AINDA
 local function CreateTab(Name, ImageID, TamanhoX, TamanhoY)
     local TabWrapper = Instance.new("Frame", TabsContainer)
-    TabWrapper.Size = UDim2.new(1, 0, 0, 42) -- Caixa principal (hitbox) continua grande
+    TabWrapper.Size = UDim2.new(1, 0, 0, 42) 
     TabWrapper.BackgroundTransparency = 1
     
     local HitboxBtn = Instance.new("TextButton", TabWrapper)
@@ -295,7 +327,7 @@ local function CreateTab(Name, ImageID, TamanhoX, TamanhoY)
     HitboxBtn.ZIndex = 5
     
     local TabIcon = Instance.new("ImageLabel", TabWrapper)
-    TabIcon.Size = UDim2.new(0, TamanhoX, 0, TamanhoY) -- Recebe os novos tamanhos ultra reduzidos
+    TabIcon.Size = UDim2.new(0, TamanhoX, 0, TamanhoY) 
     TabIcon.Position = UDim2.new(0.5, -TamanhoX/2, 0.5, -TamanhoY/2)
     TabIcon.BackgroundTransparency = 1
     TabIcon.Image = "rbxthumb://type=Asset&id=" .. tostring(ImageID) .. "&w=150&h=150"
@@ -477,15 +509,10 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- =============================================
--- === IMAGENS REDUZIDAS PARA FICAR ELEGANTE ===
--- =============================================
--- Largura X, Altura Y (Mais compactas, hitbox inteira mantida)
-local L1, R1 = CreateTab("AIM", 128137609286733, 14, 22)  -- Mouse (Bem delicado)
-local L2, R2 = CreateTab("ESP", 90674527474660, 26, 15)   -- Olho (Mais fino)
-local L3, R3 = CreateTab("MISC", 70777727722441, 20, 20)  -- Engrenagem (Pequena e centralizada)
+local L1, R1 = CreateTab("AIM", 128137609286733, 14, 22)  
+local L2, R2 = CreateTab("ESP", 90674527474660, 26, 15)   
+local L3, R3 = CreateTab("MISC", 70777727722441, 20, 20)  
 
--- Aba Combat
 CreateSectionLabel(L1, "Combat")
 CreateToggle(L1, "Enable Aimbot", false, function(v) _G.AimbotEnabled = v end)
 CreateToggle(L1, "Enable Silent Aim", false, function(v) _G.SilentAimEnabled = v end)
@@ -503,7 +530,6 @@ CreateSlider(R1, "Bullet Drop", 0, 100, 0, function(v) _G.BulletDrop = v / 10 en
 CreateToggle(R1, "Enable FOV", false, function(v) _G.ShowFOV = v end)
 CreateSlider(R1, "FOV Radius", 0, 500, 100, function(v) _G.FOV = v end)
 
--- Aba Visuals 
 CreateSectionLabel(L2, "ESP Elements")
 CreateToggle(L2, "Esp Box", false, function(v) _G.ESP_Box = v end)
 CreateToggle(L2, "Esp Fill Box", false, function(v) _G.ESP_FillBox = v end) 
@@ -521,7 +547,6 @@ CreateDropdown(R2, "Type Line", {"Bottom", "Top"}, 1, function(val) _G.ESP_LineT
 CreateDropdown(R2, "Type Health", {"Top", "Bottom", "Left", "Right"}, 1, function(val) _G.ESP_HealthType = val end)
 CreateSlider(R2, "Esp Thickness", 1, 15, 8, function(v) _G.ESP_Thickness = v end, "%")
 
--- Aba Misc
 CreateSectionLabel(L3, "Hitbox Expander")
 CreateToggle(L3, "Enable Hitbox", false, function(v) _G.HitboxEnabled = v end)
 CreateToggle(L3, "Hitbox Team Check", false, function(v) _G.HitboxTeamCheck = v end)
@@ -534,14 +559,9 @@ CreateToggle(R3, "Enable Magnet FOV", false, function(v) _G.MagnetFOVEnabled = v
 CreateSlider(R3, "Magnet FOV Radius", 0, 500, 100, function(v) _G.MagnetFOV = v end)
 CreateSlider(R3, "Magnet Max Dist", 1, 3000, 500, function(v) _G.MagnetMaxDistance = v end)
 
--- Força ativação inicial visual da primeira aba
 TabData[1].Icon.ImageColor3 = Color3.new(1,1,1)
 TabData[1].Indicator.Visible = true
 Pages[1].Visible = true
-
--- =============================================
---                 LÓGICA MATEMÁTICA
--- =============================================
 
 local function GetTargetPart(char, aimType)
     if aimType == "Aimbot Rage" or aimType == "Silent Rage" then
@@ -598,9 +618,6 @@ local function GetClosestPlayer()
     return Target
 end
 
--- =============================================
---                 VISUALS & INICIAÇÃO DO ESP
--- =============================================
 local FOVCircle = Drawing.new("Circle")
 local MagnetFOV = Drawing.new("Circle")
 
@@ -643,11 +660,9 @@ RunService:BindToRenderStep("EliteHubMain", Enum.RenderPriority.Camera.Value + 1
     local success, ping = pcall(function() return Stats.Network.ServerStatsItem["Data Ping"]:GetValue() end)
     _G.CurrentPing = success and (ping / 1000) or 0.1
 
-    -- FOV
     FOVCircle.Visible = _G.ShowFOV; FOVCircle.Radius = _G.FOV; FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); FOVCircle.Color = Color3.new(1,1,1); FOVCircle.Thickness = 1; FOVCircle.Filled = false; FOVCircle.NumSides = 64
     MagnetFOV.Visible = _G.MagnetFOVEnabled; MagnetFOV.Radius = _G.MagnetFOV; MagnetFOV.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2); MagnetFOV.Color = Theme.Accent; MagnetFOV.Thickness = 1; MagnetFOV.Filled = false; MagnetFOV.NumSides = 64
 
-    -- ESP
     for player, drawings in pairs(ESP_Table) do
         local char = player.Character
         if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char:FindFirstChild("HumanoidRootPart") then
@@ -744,7 +759,6 @@ RunService:BindToRenderStep("EliteHubMain", Enum.RenderPriority.Camera.Value + 1
         end
     end
 
-    -- CACHE DO AIMBOT (CALCULA SÓ 1 VEZ POR FRAME)
     if _G.AimbotEnabled or _G.SilentAimEnabled then
         CachedTarget = GetClosestPlayer()
         if CachedTarget and CachedTarget.Character then
@@ -777,9 +791,6 @@ RunService:BindToRenderStep("EliteHubMain", Enum.RenderPriority.Camera.Value + 1
     end
 end)
 
--- =============================================
--- HOOKS DE SILENT AIM
--- =============================================
 local OldNamecall
 OldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local Method = getnamecallmethod()
@@ -810,6 +821,9 @@ OldIndex = hookmetamethod(game, "__index", function(self, Index)
     end
     return OldIndex(self, Index)
 end)
- 
+
+
+    
+    
 
 end
